@@ -1,0 +1,10 @@
+[project]
+name = "nepse-news"
+version = "0.1.0"
+description = "Automated NEPSE news and corporate announcements scraper"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "scrapy>=2.20.0",
+    "scrapy-playwright>=0.0.48",
+]

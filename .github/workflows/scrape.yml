@@ -1,0 +1,68 @@
+name: Scrape NEPSE data
+
+on:
+  schedule:
+    - cron: "15 16 * * *"      # 16:15 UTC = 22:00 Nepal time
+  workflow_dispatch:
+    inputs:
+      since:
+        description: "News only: keep items from this date (YYYY-MM-DD), optional"
+        required: false
+      max_pages:
+        description: "Max pages per spider (raise for catch-up runs), optional"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scraper
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Scrape news
+        env:
+          SINCE: ${{ github.event.inputs.since }}
+          MAX_PAGES: ${{ github.event.inputs.max_pages }}
+        run: scrapy crawl news ${SINCE:+-a since="$SINCE"} ${MAX_PAGES:+-a max_pages="$MAX_PAGES"}
+
+      - name: Scrape announcements
+        if: ${{ !cancelled() }}      # runs even if the news step failed
+        env:
+          MAX_PAGES: ${{ github.event.inputs.max_pages }}
+        run: scrapy crawl announcements ${MAX_PAGES:+-a max_pages="$MAX_PAGES"}
+
+      - name: Commit new data
+        if: ${{ !cancelled() }}      # keeps whatever one spider managed to get
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/nepse_headlines.csv data/announcements.csv
+          if git diff --staged --quiet; then
+            echo "Nothing new"
+          else
+            git commit -m "data: $(date -u +%F)"
+            git pull --rebase
+            git push
+          fi
+
+      - name: Upload debug HTML on problems
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-html
+          path: debug/
+          if-no-files-found: ignore

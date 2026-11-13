@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments & local tooling
+.venv/
+.memory/
+uv.lock
+helper_scripts/
+goes.txt
+
+# Scraper runtime / debug artifacts
+debug/
+data/*.tmp
+
+# Superseded / staging CSVs (merged into nepse_headlines.csv & announcements.csv)
+data/news.csv
+data/announcements_latest.csv
