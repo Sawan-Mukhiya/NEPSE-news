@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       since:
-        description: "News only: keep items from this date (YYYY-MM-DD), optional"
+        description: "Keep items from this date (YYYY-MM-DD), optional"
         required: false
       max_pages:
         description: "Max pages per spider (raise for catch-up runs), optional"
@@ -42,8 +42,9 @@ jobs:
       - name: Scrape announcements
         if: ${{ !cancelled() }}      # runs even if the news step failed
         env:
+          SINCE: ${{ github.event.inputs.since }}
           MAX_PAGES: ${{ github.event.inputs.max_pages }}
-        run: scrapy crawl announcements ${MAX_PAGES:+-a max_pages="$MAX_PAGES"}
+        run: scrapy crawl announcements ${SINCE:+-a since="$SINCE"} ${MAX_PAGES:+-a max_pages="$MAX_PAGES"}
 
       - name: Commit new data
         if: ${{ !cancelled() }}      # keeps whatever one spider managed to get
@@ -66,3 +67,7 @@ jobs:
           name: debug-html
           path: debug/
           if-no-files-found: ignore
+
+      - name: Fail if debug HTML was dumped
+        if: always()
+        run: test ! -d debug

@@ -1,7 +1,9 @@
 import csv
 import os
 import re
+import shutil
 from datetime import datetime, timezone
+from itertools import islice
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
@@ -36,11 +38,12 @@ def force_english(url):
     return urlunparse(p._replace(query=urlencode(q, doseq=True)))
 
 
-def load_seen():
+def load_seen(limit=500):
+    # ponytail: top 500 rows only, raise limit if backfilling >500 items
     if not DATA_FILE.exists():
         return set()
     with open(DATA_FILE, newline="", encoding="utf-8-sig") as f:
-        return {row["url"] for row in csv.DictReader(f) if row.get("url")}
+        return {row["url"] for row in islice(csv.DictReader(f), limit) if row.get("url")}
 
 
 class CsvPrependPipeline:
@@ -56,22 +59,22 @@ class CsvPrependPipeline:
     def close_spider(self, spider):
         if not self.new:
             return
-        old = []
-        if DATA_FILE.exists():
-            with open(DATA_FILE, newline="", encoding="utf-8-sig") as f:
-                old = list(csv.DictReader(f))
         DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
         tmp = DATA_FILE.with_suffix(".tmp")
-        with open(tmp, "w", newline="", encoding="utf-8-sig") as f:
+        with open(tmp, "w", newline="", encoding="utf-8-sig") as out_f:
             w = csv.DictWriter(
-                f,
+                out_f,
                 fieldnames=FIELDS,
                 extrasaction="ignore",
                 quoting=csv.QUOTE_ALL,   # commas/quotes inside titles are safe
                 lineterminator="\n",
             )
             w.writeheader()
-            w.writerows(self.new + old)
+            w.writerows(self.new)
+            if DATA_FILE.exists():
+                with open(DATA_FILE, "r", newline="", encoding="utf-8-sig") as in_f:
+                    next(in_f, None)     # skip existing header
+                    shutil.copyfileobj(in_f, out_f)
         os.replace(tmp, DATA_FILE)       # atomic: never leaves a half-written file
 
 
