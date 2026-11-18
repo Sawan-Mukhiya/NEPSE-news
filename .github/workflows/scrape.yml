@@ -49,8 +49,8 @@ jobs:
       - name: Commit new data
         if: ${{ !cancelled() }}      # keeps whatever one spider managed to get
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "Sawan-Mukhiya"
+          git config user.email "sawanmukhiy@gmail.com"
           git add data/nepse_headlines.csv data/announcements.csv
           if git diff --staged --quiet; then
             echo "Nothing new"
