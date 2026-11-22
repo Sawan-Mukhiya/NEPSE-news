@@ -9,8 +9,10 @@ from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 import scrapy
 
+from nepse_news.symbol_matcher import SymbolMatcher
+
 DATA_FILE = Path("data/nepse_headlines.csv")
-FIELDS = ["title", "published", "published_raw", "tag", "url", "scraped_at"]
+FIELDS = ["title", "published", "published_raw", "tag", "symbol", "url", "scraped_at"]
 DATE_RE = re.compile(r"(\d{1,2})\s+([A-Za-z]{3,9})\.?,?\s+(\d{4})")
 
 
@@ -104,6 +106,7 @@ class NewsSpider(scrapy.Spider):
         self.since = datetime.strptime(since, "%Y-%m-%d").date() if since else None
         self.max_pages = int(max_pages or self.MAX_PAGES)
         self.seen = load_seen()
+        self.matcher = SymbolMatcher()
         self.scraped_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     def _page_url(self, page):
@@ -166,6 +169,7 @@ class NewsSpider(scrapy.Spider):
                 "published": f"{d.month}/{d.day}/{d.year}" if d else None,
                 "published_raw": raw_date if len(raw_date or "") < 40 else None,
                 "tag": card.xpath("normalize-space(.//a[contains(@href,'/news/tag/')][1])").get(),
+                "symbol": self.matcher.match(title),
                 "url": url,
                 "scraped_at": self.scraped_at,
             }

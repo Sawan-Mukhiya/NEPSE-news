@@ -7,8 +7,10 @@ from pathlib import Path
 
 import scrapy
 
+from nepse_news.symbol_matcher import SymbolMatcher
+
 DATA_FILE = Path("data/announcements.csv")
-FIELDS = ["title", "url", "date", "scraped_at"]
+FIELDS = ["title", "symbol", "url", "date", "scraped_at"]
 DATE_FORMATS = ("%A, %B %d, %Y", "%B %d, %Y", "%d %b, %Y", "%Y-%m-%d")
 
 
@@ -99,6 +101,7 @@ class AnnouncementsSpider(scrapy.Spider):
         self.since = datetime.strptime(since, "%Y-%m-%d").date() if since else None
         self.max_pages = int(max_pages or self.MAX_PAGES)
         self.seen = load_seen()
+        self.matcher = SymbolMatcher()
         self.scraped_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     def _first_request(self):
@@ -152,6 +155,7 @@ class AnnouncementsSpider(scrapy.Spider):
             new_count += 1
             yield {
                 "title": title,
+                "symbol": self.matcher.match(title),
                 "url": url,
                 "date": f"{d.month}/{d.day}/{d.year}" if d else (raw_date or None),
                 "scraped_at": self.scraped_at,
